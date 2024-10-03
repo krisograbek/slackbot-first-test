@@ -5,8 +5,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 from flask import Flask, request, Response
 from slackeventsapi import SlackEventAdapter
+from openai import OpenAI
 
 load_dotenv()
+
+openai_client = OpenAI()
 
 SIGNING_SECRET = os.environ["SIGNING_SECRET"]
 app = Flask(__name__)
@@ -105,6 +108,27 @@ def message_count():
     client.chat_postMessage(
         channel=channel_id, text=f"You've sent {message_count} messages"
     )
+    return Response(), 200
+
+
+@app.route("/motivate-me", methods=["POST"])
+def motivate_me():
+    data = request.form
+    user_text = data.get("text")
+    channel_id = data.get("channel_id")
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": "You're an expert in motivating people. It the user shares what's wrong, address it. Otherwise give general motivation",
+            },
+            {"role": "user", "content": user_text},
+        ],
+    )
+    motivation = response.choices[0].message.content
+    client.chat_postMessage(channel=channel_id, text=motivation)
+
     return Response(), 200
 
 
